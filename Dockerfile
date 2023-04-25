@@ -1,5 +1,7 @@
-FROM alpine:3.6
-LABEL maintainer=doug.warren@gmail.com
+FROM node:alpine
+LABEL maintainer=alex.e.hatfield@gmail.com
+
+WORKDIR /root/noVNC
 
 ENV HOME=/root \
 	DEBIAN_FRONTEND=noninteractive \
@@ -9,21 +11,16 @@ ENV HOME=/root \
 	REMOTE_HOST=localhost \
 	REMOTE_PORT=5900
 
-RUN apk --update --upgrade add git bash supervisor nodejs nodejs-npm \
-	&& git clone https://github.com/novnc/noVNC.git /root/noVNC \
-	&& git clone https://github.com/novnc/websockify /root/noVNC/utils/websockify \
-	&& rm -rf /root/noVNC/.git \
-	&& rm -rf /root/noVNC/utils/websockify/.git \
-	&& cd /root/noVNC \
-	&& npm install npm@latest \
+RUN apk --update --upgrade add git bash python3 \
+    && git clone https://github.com/novnc/noVNC ./ \
+	&& git clone https://github.com/novnc/websockify ./utils/websockify \
+	&& rm -rf .git \
+	&& rm -rf utils/websockify/.git \
 	&& npm install \
-	&& ./utils/use_require.js --as commonjs --with-app \
-	&& cp /root/noVNC/node_modules/requirejs/require.js /root/noVNC/build \
-	&& sed -i -- "s/ps -p/ps -o pid | grep/g" /root/noVNC/utils/launch.sh \
-	&& apk del git nodejs-npm nodejs
+	&& apk del git
 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY noVNC/ /root/noVNC/
 
 EXPOSE 8081
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ./utils/novnc_proxy --vnc "$REMOTE_HOST:$REMOTE_PORT" --listen 8081 --web /root/noVNC/
